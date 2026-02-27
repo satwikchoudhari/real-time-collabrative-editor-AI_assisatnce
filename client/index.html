@@ -59,9 +59,18 @@
     let timeout;
 
     socket.on("code-change", (data) => {
-        isUpdating = true;
-        editor.setValue(data);
-        isUpdating = false; 
+        if (editor.getValue() !== data) {
+            const position = editor.getPosition(); // Save current cursor position
+
+            isUpdating = true;
+            editor.setValue(data); // Update editor content with new code
+
+            if (position) {
+                editor.setPosition(position); // Restore cursor position
+            }
+            isUpdating = false; 
+
+        }
     });
 
     editor.onDidChangeModelContent(() => {
