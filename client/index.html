@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time Collaborative Editor</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #editor {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            outline: none;
+            padding: 20px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+<div id="userCount" style="padding:10px; background: #eee;">    
+    Users online: 1
+</div>
+
+<div id="editor" style="height: 90vh;"></div>
+
+<!-- Socket.io client -->
+<script src="/socket.io/socket.io.js"></script>
+
+<!-- Monaco loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+
+<script>
+    const socket = io();
+    const roomId = window.location.pathname.split("/")[2] || "default"; // Get room ID from URL
+    const username = prompt("Enter your username:") || "Anonymous"; // Prompt for username
+
+    socket.emit("join-room", { roomId, username }); // Join the specified room
+
+    const userCountDiv = document.getElementById("userCount");
+
+    socket.on("user-count", (count) => {
+        userCountDiv.textContent = `Users online: ${count}`;
+    });
+    
+    require.config({ paths: { "vs": "https://unpkg.com/monaco-editor@0.44.0/min/vs" }});
+
+    require(["vs/editor/editor.main"], function() {
+        const editor = monaco.editor.create(document.getElementById("editor"), {
+            value: "",
+            language: "javascript",
+            theme: "vs-dark",
+            automaticLayout: true
+        });
+
+    let isUpdating = false;
+    let timeout;
+
+    socket.on("code-change", (data) => {
+        isUpdating = true;
+        editor.setValue(data);
+        isUpdating = false; 
+    });
+
+    editor.onDidChangeModelContent(() => {
+        if (!isUpdating) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                const code = editor.getValue();
+                socket.emit("code-change", code);
+            }, 300); // Debounce to reduce frequency of updates
+        }
+    }); 
+
+    });
+    
+</script>
+
+</body>
+</html>
